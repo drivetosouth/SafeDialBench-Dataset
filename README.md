@@ -21,7 +21,7 @@ An example of dialogue and model evaluation for ethics under scene construct att
 
 ## Cite
 
-If you find our work helpful, feel free to give us a cite.
+If you find our work helpful, feel free to cite this work.
 
 ```
 
