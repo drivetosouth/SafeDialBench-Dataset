@@ -24,5 +24,13 @@ An example of dialogue and model evaluation for ethics under scene construct att
 If you find our work helpful, feel free to cite this work.
 
 ```
-
+@misc{cao2025safedialbenchfinegrainedsafetybenchmark,
+      title={SafeDialBench: A Fine-Grained Safety Benchmark for Large Language Models in Multi-Turn Dialogues with Diverse Jailbreak Attacks}, 
+      author={Hongye Cao and Yanming Wang and Sijia Jing and Ziyue Peng and Zhixin Bai and Zhe Cao and Meng Fang and Fan Feng and Boyan Wang and Jiaheng Liu and Tianpei Yang and Jing Huo and Yang Gao and Fanyu Meng and Xi Yang and Chao Deng and Junlan Feng},
+      year={2025},
+      eprint={2502.11090},
+      archivePrefix={arXiv},
+      primaryClass={cs.CL},
+      url={https://arxiv.org/abs/2502.11090}, 
+}
 ```
