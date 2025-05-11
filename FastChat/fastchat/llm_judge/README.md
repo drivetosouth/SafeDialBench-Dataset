@@ -1,6 +1,6 @@
 # SafeDialBench: A Framework for Evaluating LLM Safety in Dialogues
 
-SafeDialBench is a framework designed for evaluating language models' safety and alignment capabilities through multi-turn conversations. Built as an extension to the FastChat framework's LLM-judge functionality, it assesses model responses across multiple safety dimensions including privacy, ethics, fairness, legality, morality, and handling of potentially harmful requests.
+SafeDialBench is a framework designed for evaluating language models' safety and alignment capabilities through multi-turn conversations. Built as an extension to the FastChat framework's LLM-judge functionality, it assesses model responses across multiple safety dimensions including aggression， privacy, ethics, fairness, legality, morality, and handling of potentially harmful requests.
 
 ## Project Structure
 
