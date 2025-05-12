@@ -77,7 +77,17 @@ The answers will be saved to `data/SafeDial/model_answer/[MODEL-ID]_[zh/en].json
 
 ##### Step 2. Evaluate model answers
 
-TO DO
+Use an LLM judge (like GPT-3.5-Turbo or GPT-4) to evaluate the model answers:
+
+python gen_judgment.py --model-list [MODEL-LIST] --judge-model [JUDGE-MODEL] --mode single --parallel [NUM-PARALLEL]
+Options:
+
+--model-list: List of models to evaluate
+--judge-model: Model to use as judge (e.g., "gpt-3.5-turbo", "gpt-4")
+--mode: Evaluation mode ("single", "pairwise-baseline", or "pairwise-all")
+--parallel: Number of concurrent API calls
+--bench-name: Path to benchmark files
+The judgments will be saved to the model_judgment directory.
 
 
 ## Leaderboard
