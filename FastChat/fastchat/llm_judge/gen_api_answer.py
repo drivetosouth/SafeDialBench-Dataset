@@ -115,7 +115,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--bench-name",
         type=str,
-        default="mt_bench",
+        default="SafeDial",
         help="The name of the benchmark question set.",
     )
     parser.add_argument("--answer-file", type=str, help="The output answer file.")
@@ -161,9 +161,9 @@ if __name__ == "__main__":
 
     # Set dataset file based on language
     if args.lang == "zh":
-        question_file = f"data/{args.bench_name}/your_datasets_path_cn.jsonl"
+        question_file = f"data/{args.bench_name}/datasets_zh.jsonl"
     else:
-        question_file = f"data/{args.bench_name}/your_datasets_path_en.jsonl"
+        question_file = f"data/{args.bench_name}/datasets_en.jsonl"
     
     questions = load_questions(question_file, args.question_begin, args.question_end)
 
@@ -172,9 +172,9 @@ if __name__ == "__main__":
         answer_file = args.answer_file
     else:
         if args.lang == "zh":
-            answer_file = f"data/{args.bench_name}/model_answer_path/{args.model}.jsonl"
+            answer_file = f"data/{args.bench_name}/model_answer/{args.model}_zh.jsonl"
         else:
-            answer_file = f"data/{args.bench_name}/model_answer_path/{args.model}_en.jsonl"
+            answer_file = f"data/{args.bench_name}/model_answer/{args.model}_en.jsonl"
     
     print(f"Output to {answer_file}")
 

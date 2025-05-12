@@ -16,21 +16,10 @@ import shortuuid
 import torch
 from tqdm import tqdm
 
+from fastchat.llm_judge.common import load_questions
 from fastchat.model import load_model, get_conversation_template
 from fastchat.utils import str_to_torch_dtype
 
-
-def load_questions_mt_bench101(question_file, question_begin=None, question_end=None):
-    questions = []
-    with open(question_file, "r", encoding="utf-8") as fin:
-        for idx, line in enumerate(fin):
-            if question_begin is not None and idx < question_begin:
-                continue
-            if question_end is not None and idx >= question_end:
-                break
-            question = json.loads(line.strip())
-            questions.append(question)
-    return questions
 
 
 def run_eval(
@@ -48,11 +37,9 @@ def run_eval(
     dtype,
     revision,
 ):
-    questions = load_questions_mt_bench101(question_file, question_begin, question_end)
-    # 随机打乱问题列表，平衡负载
+    questions = load_questions(question_file, question_begin, question_end)
     random.shuffle(questions)
 
-    # 将问题列表分块，分配给多个 GPU
     assert num_gpus_total % num_gpus_per_model == 0
     use_ray = num_gpus_total // num_gpus_per_model > 1
 
@@ -116,8 +103,7 @@ def get_model_answers(
     )
 
     for question in tqdm(questions):
-        # 根据任务类型设置温度（可选）
-        temperature = 0.7  # 默认温度
+        temperature = 0.7  
 
         choices = []
         for i in range(num_choices):
@@ -135,7 +121,6 @@ def get_model_answers(
 
                 conv.append_message(conv.roles[1], None)
                 prompt = conv.get_prompt()
-                # print(idx,": ", prompt)
                 input_ids = tokenizer([prompt]).input_ids
                 attention_mask = torch.as_tensor(tokenizer([prompt]).attention_mask).cuda()
 
@@ -158,21 +143,19 @@ def get_model_answers(
                     else:
                         output_ids = output_ids[0][len(input_ids[0]) :]
 
-                    # 处理生成的输出
                     output = tokenizer.decode(
                         output_ids,
                         skip_special_tokens=True,
                         spaces_between_special_tokens=False,
                     )
 
-                    # 去除停止词（如果有）
                     if conv.stop_str and output.find(conv.stop_str) > -1:
                         output = output[: output.find(conv.stop_str)]
 
                     output = output.strip()
 
                 except RuntimeError as e:
-                    print(f"错误：问题 ID {question['id']}，错误信息：{e}")
+                    print(f"Error: Question ID {question['id']}, Error Message: {e}")
                     output = "ERROR"
 
                 # conv.update_last_message(output)
@@ -181,61 +164,9 @@ def get_model_answers(
 
                 conv.update_last_message(bot_msg)
                 
-                # if bot_msg is not None and idx < len(history) - 1:
-                #     # 已有机器人的回复，添加到对话中
-                #     conv.append_message(conv.roles[1], bot_msg)
-                #     turns.append({"role": "assistant", "message": bot_msg})
-                # else:
-                #     # 需要模型生成回复
-                #     conv.append_message(conv.roles[1], None)
-                #     prompt = conv.get_prompt()
-                #     print(prompt)
-                #     input_ids = tokenizer([prompt]).input_ids
-                #     attention_mask = torch.as_tensor(tokenizer([prompt]).attention_mask).cuda()
-                #     # print(tokenizer([prompt]))
-
-                #     if temperature < 1e-4:
-                #         do_sample = False
-                #     else:
-                #         do_sample = True
-
-                #     try:
-                #         output_ids = model.generate(
-                #             torch.as_tensor(input_ids).cuda(),
-                #             do_sample=do_sample,
-                #             temperature=temperature,
-                #             max_new_tokens=max_new_token,
-                #             attention_mask=attention_mask,
-                #             pad_token_id=tokenizer.eos_token_id,
-                #         )
-                #         if model.config.is_encoder_decoder:
-                #             output_ids = output_ids[0]
-                #         else:
-                #             output_ids = output_ids[0][len(input_ids[0]) :]
-
-                #         # 处理生成的输出
-                #         output = tokenizer.decode(
-                #             output_ids,
-                #             skip_special_tokens=True,
-                #             spaces_between_special_tokens=False,
-                #         )
-
-                #         # 去除停止词（如果有）
-                #         if conv.stop_str and output.find(conv.stop_str) > -1:
-                #             output = output[: output.find(conv.stop_str)]
-
-                #         output = output.strip()
-
-                #     except RuntimeError as e:
-                #         print(f"错误：问题 ID {question['id']}，错误信息：{e}")
-                #         output = "ERROR"
-
-                #     conv.update_last_message(output)
-                #     turns.append({"role": "assistant", "message": output})
 
             choices.append({"index": i, "turns": turns})
 
-        # 保存答案
         os.makedirs(os.path.dirname(answer_file), exist_ok=True)
         with open(os.path.expanduser(answer_file), "a", encoding="utf-8") as fout:
             ans_json = {
@@ -251,7 +182,6 @@ def get_model_answers(
 
 
 def reorg_answer_file(answer_file):
-    """按照问题 ID 排序并去重答案文件"""
     answers = {}
     with open(answer_file, "r", encoding="utf-8") as fin:
         for l in fin:
@@ -271,64 +201,71 @@ if __name__ == "__main__":
         "--model-path",
         type=str,
         required=True,
-        help="模型权重的路径，可以是本地文件夹或 Hugging Face 的仓库 ID。",
+        help="Path to the model weights, either a local folder or a Hugging Face repository ID.",
     )
     parser.add_argument(
-        "--model-id", type=str, required=True, help="模型的自定义名称。"
+        "--model-id", type=str, required=True, help="Custom name for the model."
     )
     parser.add_argument(
         "--bench-name",
         type=str,
-        default="mt-bench-101",
-        help="基准问题集的名称。",
+        default="SafeDial",
+        help="Name of the benchmark question set.",
     )
     parser.add_argument(
         "--question-begin",
         type=int,
-        help="调试选项。问题的起始索引。",
+        help="Start index of the questions.",
     )
     parser.add_argument(
-        "--question-end", type=int, help="调试选项。问题的结束索引。"
+        "--question-end", type=int, help="End index of the questions."
     )
-    parser.add_argument("--answer-file", type=str, help="输出答案文件的路径。")
+    parser.add_argument("--answer-file", type=str, help="Path to the output answer file.")
     parser.add_argument(
         "--max-new-token",
         type=int,
         default=1024,
-        help="生成的最大新标记数。",
+        help="Maximum number of new tokens to generate.",
     )
     parser.add_argument(
         "--num-choices",
         type=int,
         default=1,
-        help="生成的答案选项数量。",
+        help="Number of answer choices to generate.",
     )
     parser.add_argument(
         "--num-gpus-per-model",
         type=int,
         default=1,
-        help="每个模型使用的 GPU 数量。",
+        help="Number of GPUs to use per model.",
     )
     parser.add_argument(
-        "--num-gpus-total", type=int, default=1, help="总共使用的 GPU 数量。"
+        "--num-gpus-total", type=int, default=1, help="Total number of GPUs to use."
     )
     parser.add_argument(
         "--max-gpu-memory",
         type=str,
-        help="每个 GPU 用于模型权重的最大显存。",
+        help="Maximum GPU memory for model weights.",
     )
     parser.add_argument(
         "--dtype",
         type=str,
         choices=["float32", "float16", "bfloat16"],
-        help="覆盖默认的 dtype。如果未设置，在 GPU 上使用 float16，在 CPU 上使用 float32。",
+        help="Override the default dtype. Uses float16 on GPU and float32 on CPU if not set.",
         default=None,
     )
     parser.add_argument(
         "--revision",
         type=str,
         default="main",
-        help="要加载的模型版本。",
+        help="Version of the model to load.",
+    )
+    parser.add_argument(
+        "--language", 
+        type=str, 
+        default="zh", 
+        choices=["zh", "en"],
+        help="Language of the dataset (zh for Chinese, en for English)"
     )
 
     args = parser.parse_args()
@@ -338,13 +275,22 @@ if __name__ == "__main__":
 
         ray.init()
 
-    question_file = f"data/{args.bench_name}/datasets_all.jsonl"
+    # Set dataset file based on language
+    if args.lang == "zh":
+        question_file = f"data/{args.bench_name}/datasets_zh.jsonl"
+    else:
+        question_file = f"data/{args.bench_name}/datasets_en.jsonl"
+    
+    # Set output file based on language
     if args.answer_file:
         answer_file = args.answer_file
     else:
-        answer_file = f"data/{args.bench_name}/model_answer_ours/{args.model_id}.jsonl"
+        if args.lang == "zh":
+            answer_file = f"data/{args.bench_name}/model_answer/{args.model}_zh.jsonl"
+        else:
+            answer_file = f"data/{args.bench_name}/model_answer/{args.model}_en.jsonl"
 
-    print(f"输出答案到 {answer_file}")
+    print(f"Output to {answer_file}")
 
     run_eval(
         model_path=args.model_path,
